@@ -1,13 +1,15 @@
 
 #include <ESP8266WebServer.h>
 
-#define LED 02  // 13 - sonoff LED, 2 - esp8266 onboard LED
+#define LED 13  // 13 - sonoff LED, 2 - esp8266 onboard LED
 #define REL 12
+#define BUT 0   // Button
 
 const char* ssid = "SSID";
 const char* password = "PASSWORD";
 
 int rstate = 0;
+unsigned long last_button_press = millis();
 
 ESP8266WebServer server(80);
 
@@ -17,7 +19,8 @@ void connectWiFi()
   Serial.println();
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.print(ssid);
+  Serial.print(" ");
   
   WiFi.begin(ssid, password);
   bool state = HIGH;
@@ -37,19 +40,23 @@ void connectWiFi()
 
 void handleOn()
 {
-  digitalWrite(LED, LOW);
-  digitalWrite(REL, HIGH);
-  rstate = 1;
-  server.send(200, "text/plain", "ON");
+  if (rstate != 1) {
+    digitalWrite(LED, LOW);
+    digitalWrite(REL, HIGH);
+    rstate = 1;
+    server.send(200, "text/plain", "ON");
+  }
 }
 
 
 void handleOff()
 {
-  digitalWrite(LED, HIGH);
-  digitalWrite(REL, LOW);
-  rstate = 0;
-  server.send(200, "text/plain", "OFF");
+  if (rstate != 0) {
+    digitalWrite(LED, HIGH);
+    digitalWrite(REL, LOW);
+    rstate = 0;
+    server.send(200, "text/plain", "OFF");
+  }
 }
 
 
@@ -95,8 +102,19 @@ void handleNotFound(){
 }
 
 
+void handleButtonPress() {
+  if (last_button_press + 500 < millis()) {
+    if (digitalRead(BUT) == LOW) {
+      handleToggle();
+      last_button_press = millis();
+      Serial.println("Button pressed");
+    }
+  }
+}
+
 void setup() 
 {
+  pinMode(BUT, INPUT);
   pinMode(LED, OUTPUT);
   pinMode(REL, OUTPUT);
   digitalWrite(LED, LOW);
@@ -120,5 +138,6 @@ void setup()
 
 void loop() 
 {
-  server.handleClient();
+    server.handleClient();
+    handleButtonPress();
 }
